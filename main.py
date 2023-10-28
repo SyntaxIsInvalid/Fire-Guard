@@ -7,6 +7,7 @@ from PIL import ImageFile
 from sklearn.metrics import confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+import time
 
 # Allow loading truncated images
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -17,14 +18,16 @@ class CNN(nn.Module):
         super(CNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
         self.conv2 = nn.Conv2d(16, 32, 3, padding=1)
-        self.fc1 = nn.Linear(32 * 64 // 4 * 64 // 4, 2)
+        self.conv3 = nn.Conv2d(32, 64, 3, padding=1)
+        self.fc1 = nn.Linear(64 * 8 * 8, 2)  # Updated input size
         self.pool = nn.MaxPool2d(2, 2)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.pool(self.relu(self.conv1(x)))
         x = self.pool(self.relu(self.conv2(x)))
-        x = x.view(-1, 32 * 64 // 4 * 64 // 4)
+        x = self.pool(self.relu(self.conv3(x)))
+        x = x.view(-1, 64 * 8 * 8)  # Updated input size
         x = self.fc1(x)
         return x
 
@@ -40,16 +43,17 @@ test_dataset = datasets.ImageFolder(root='C:/Users/Razer/Downloads/archive2/test
 valid_dataset = datasets.ImageFolder(root='C:/Users/Razer/Downloads/archive2/valid', transform=transform)
 
 # Create the data loaders
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+valid_loader = DataLoader(valid_dataset, batch_size=64, shuffle=False)
 
 # Create the model, loss function, and optimizer
 model = CNN()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.00085)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
+start_time = time.time()
 num_epochs = 3
 for epoch in range(num_epochs):
     model.train()
@@ -62,7 +66,9 @@ for epoch in range(num_epochs):
         optimizer.step()
         running_loss += loss.item()
     print(f"Epoch {epoch+1}/{num_epochs}, Loss: {running_loss/len(train_loader)}")
-
+end_time = time.time()  # Record the end time
+training_time = end_time - start_time  # Compute the training time
+print(f"Training Time: {training_time} seconds")
 # Validate the model
 model.eval()
 correct = 0
